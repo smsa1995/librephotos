@@ -40,14 +40,13 @@ class DecoderRNN(nn.Module):
         embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
         hiddens, _ = self.lstm(packed)
-        outputs = self.linear(hiddens[0])
-        return outputs
+        return self.linear(hiddens[0])
 
     def sample(self, features, states=None):
         """Generate captions for given image features using greedy search."""
         sampled_ids = []
         inputs = features.unsqueeze(1)
-        for i in range(self.max_seg_length):
+        for _ in range(self.max_seg_length):
             hiddens, states = self.lstm(
                 inputs, states
             )  # hiddens: (batch_size, 1, hidden_size)

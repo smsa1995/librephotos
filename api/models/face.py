@@ -34,6 +34,5 @@ class Face(models.Model):
 # From: https://stackoverflow.com/questions/16041232/django-delete-filefield
 @receiver(models.signals.post_delete, sender=Face)
 def auto_delete_file_on_delete(sender, instance, **kwargs):
-    if instance.image:
-        if os.path.isfile(instance.image.path):
-            os.remove(instance.image.path)
+    if instance.image and os.path.isfile(instance.image.path):
+        os.remove(instance.image.path)

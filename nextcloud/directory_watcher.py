@@ -43,7 +43,6 @@ def scan_photos(user, job_id):
     if LongRunningJob.objects.filter(job_id=job_id).exists():
         lrj = LongRunningJob.objects.get(job_id=job_id)
         lrj.started_at = datetime.datetime.now().replace(tzinfo=pytz.utc)
-        lrj.save()
     else:
         lrj = LongRunningJob.objects.create(
             started_by=user,
@@ -52,8 +51,7 @@ def scan_photos(user, job_id):
             started_at=datetime.datetime.now().replace(tzinfo=pytz.utc),
             job_type=LongRunningJob.JOB_SCAN_PHOTOS,
         )
-        lrj.save()
-
+    lrj.save()
     nc = nextcloud.Client(user.nextcloud_server_address)
     nc.login(user.nextcloud_username, user.nextcloud_app_password)
 
@@ -80,15 +78,18 @@ def scan_photos(user, job_id):
 
         if not os.path.exists(local_path):
             nc.get_file(photo, local_path)
-        util.logger.info("Downloaded photo from nextcloud to " + local_path)
+        util.logger.info(f"Downloaded photo from nextcloud to {local_path}")
 
     try:
         image_paths.sort()
 
-        image_paths_to_add = []
-        for image_path in image_paths:
-            if not Photo.objects.filter(image_paths__contains=image_path).exists():
-                image_paths_to_add.append(image_path)
+        image_paths_to_add = [
+            image_path
+            for image_path in image_paths
+            if not Photo.objects.filter(
+                image_paths__contains=image_path
+            ).exists()
+        ]
 
         added_photo_count = 0
         to_add_count = len(image_paths_to_add)
@@ -98,7 +99,7 @@ def scan_photos(user, job_id):
             lrj.result = {"progress": {"current": idx + 1, "target": to_add_count}}
             lrj.save()
 
-        util.logger.info("Added {} photos".format(len(image_paths_to_add)))
+        util.logger.info(f"Added {len(image_paths_to_add)} photos")
         build_image_similarity_index(user)
 
         lrj = LongRunningJob.objects.get(job_id=job_id)

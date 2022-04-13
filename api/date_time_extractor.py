@@ -229,8 +229,7 @@ class TimeExtractionRule:
         tag_val = exif_tags.get(tag_name)
         if not tag_val:
             return None
-        dt = _extract_no_tz_datetime_from_str(tag_val)
-        return dt
+        return _extract_no_tz_datetime_from_str(tag_val)
 
     def _check_condition_path(self, path):
         if "condition_path" in self.params:
@@ -517,11 +516,15 @@ def extract_local_date_time(
         required_tags.update(rule.get_required_exif_tags())
     required_tags = list(required_tags)
     exif_values = exif_getter(required_tags)
-    exif_tags = {k: v for k, v in zip(required_tags, exif_values)}
+    exif_tags = dict(zip(required_tags, exif_values))
     for rule in rules:
-        res = rule.apply(
-            path, exif_tags, gps_lat, gps_lon, user_default_tz, user_defined_timestamp
-        )
-        if res:
+        if res := rule.apply(
+            path,
+            exif_tags,
+            gps_lat,
+            gps_lon,
+            user_default_tz,
+            user_defined_timestamp,
+        ):
             return res
     return None

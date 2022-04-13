@@ -105,29 +105,31 @@ class PhotoSerializer(serializers.ModelSerializer):
 
     def get_similar_photos(self, obj):
         res = search_similar_image(obj.owner, obj, threshold=90)
-        arr = []
-        if len(res) > 0:
-            [arr.append(e) for e in res["result"]]
-            photos = Photo.objects.filter(image_hash__in=arr).all()
-            res = []
-            for photo in photos:
-                type = "image"
-                if photo.video:
-                    type = "video"
-                res.append({"image_hash": photo.image_hash, "type": type})
-            return res
-        else:
+        if len(res) <= 0:
             return []
+        arr = []
+        [arr.append(e) for e in res["result"]]
+        photos = Photo.objects.filter(image_hash__in=arr).all()
+        res = []
+        for photo in photos:
+            type = "image"
+            if photo.video:
+                type = "video"
+            res.append({"image_hash": photo.image_hash, "type": type})
+        return res
 
     def get_captions_json(self, obj):
         if obj.captions_json and len(obj.captions_json) > 0:
             return obj.captions_json
         else:
-            emptyArray = {
+            return {
                 "im2txt": "",
-                "places365": {"attributes": [], "categories": [], "environment": []},
+                "places365": {
+                    "attributes": [],
+                    "categories": [],
+                    "environment": [],
+                },
             }
-            return emptyArray
 
     def get_image_path(self, obj):
         try:
@@ -154,10 +156,7 @@ class PhotoSerializer(serializers.ModelSerializer):
             return None
 
     def get_geolocation(self, obj):
-        if obj.geolocation_json:
-            return json.loads(obj.geolocation_json)
-        else:
-            return None
+        return json.loads(obj.geolocation_json) if obj.geolocation_json else None
 
     def get_people(self, obj):
         return [f.person.name for f in obj.faces.all()]
@@ -199,10 +198,9 @@ class PersonSerializer(serializers.ModelSerializer):
     def get_face_photo_url(self, obj):
         if obj.cover_photo:
             return obj.cover_photo.image_hash
-        first_face = obj.faces.filter(
+        if first_face := obj.faces.filter(
             Q(person_label_is_inferred=False) & Q(photo__hidden=False)
-        ).first()
-        if first_face:
+        ).first():
             return first_face.photo.image_hash
         else:
             return None
@@ -210,10 +208,9 @@ class PersonSerializer(serializers.ModelSerializer):
     def get_video(self, obj):
         if obj.cover_photo:
             return obj.cover_photo.video
-        first_face = obj.faces.filter(
+        if first_face := obj.faces.filter(
             Q(person_label_is_inferred=False) & Q(photo__hidden=False)
-        ).first()
-        if first_face:
+        ).first():
             return first_face.photo.video
         else:
             return None
@@ -223,13 +220,12 @@ class PersonSerializer(serializers.ModelSerializer):
         qs = Person.objects.filter(name=name)
         if qs.count() > 0:
             return qs[0]
-        else:
-            new_person = Person()
-            new_person.name = name
-            new_person.save()
-            logger.info("created person {}" % new_person.id)
-            cache.clear()
-            return new_person
+        new_person = Person()
+        new_person.name = name
+        new_person.save()
+        logger.info("created person {}" % new_person.id)
+        cache.clear()
+        return new_person
 
     def update(self, instance, validated_data):
         if "newPersonName" in validated_data.keys():
@@ -298,7 +294,7 @@ class FaceSerializer(serializers.ModelSerializer):
             p.name = name
             p.save()
             instance.person = p
-            logger.info("created person with name %s" % name)
+            logger.info(f"created person with name {name}")
         if instance.person.name == "unknown":
             instance.person_label_is_inferred = None
             instance.person_label_probability = 0.0
@@ -378,15 +374,17 @@ class AlbumPersonListSerializer(serializers.ModelSerializer):
         return obj.filter(Q(person_label_is_inferred=False)).faces.count()
 
     def get_cover_photo_url(self, obj):
-        first_face = obj.faces.filter(Q(person_label_is_inferred=False)).first()
-        if first_face:
+        if first_face := obj.faces.filter(
+            Q(person_label_is_inferred=False)
+        ).first():
             return first_face.photo.square_thumbnail.url
         else:
             return None
 
     def get_face_photo_url(self, obj):
-        first_face = obj.faces.filter(Q(person_label_is_inferred=False)).first()
-        if first_face:
+        if first_face := obj.faces.filter(
+            Q(person_label_is_inferred=False)
+        ).first():
             return first_face.photo.image.url
         else:
             return None

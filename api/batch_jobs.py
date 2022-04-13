@@ -46,7 +46,7 @@ def batch_calculate_clip_embedding(job_id, user):
     os.environ["OMP_NUM_THREADS"] = str(num_threads)
 
     BATCH_SIZE = 64
-    util.logger.info("Using threads: {}".format(torch.get_num_threads()))
+    util.logger.info(f"Using threads: {torch.get_num_threads()}")
 
     try:
         done_count = 0
@@ -56,12 +56,9 @@ def batch_calculate_clip_embedding(job_id, user):
                     :BATCH_SIZE
                 ]
             )
-            valid_objs = []
-            for obj in objs:
-                if os.path.exists(obj.thumbnail_big.path):
-                    valid_objs.append(obj)
+            valid_objs = [obj for obj in objs if os.path.exists(obj.thumbnail_big.path)]
             imgs = list(map(lambda obj: obj.thumbnail_big.path, valid_objs))
-            if len(valid_objs) == 0:
+            if not valid_objs:
                 break
 
             imgs_emb, magnitudes = semantic_search_instance.calculate_clip_embeddings(
@@ -84,4 +81,4 @@ def batch_calculate_clip_embedding(job_id, user):
         lrj.save()
 
     except Exception as e:
-        util.logger.error("Error in batch_calculate_clip_embedding: {}".format(e))
+        util.logger.error(f"Error in batch_calculate_clip_embedding: {e}")

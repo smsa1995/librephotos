@@ -114,9 +114,9 @@ class UserTestCase(TestCase):
 
         # make sure the logged in user cannot update his own scan_directory path
         patch_res = self.client_user.patch(
-            "/api/user/{}/".format(test_user_pk),
-            {"scan_directory": forced_scan_directory},
+            f"/api/user/{test_user_pk}/", {"scan_directory": forced_scan_directory}
         )
+
         self.assertTrue(patch_res.json()["scan_directory"] != forced_scan_directory)
 
         # make sure get /api/user/ doesn't return password
@@ -182,16 +182,17 @@ class SetupDirectoryTestCase(TestCase):
 
     def test_setup_directory(self):
         patch_res = self.client_admin.patch(
-            "/api/manage/user/{}/".format(self.userid),
-            {"scan_directory": "/code"},
+            f"/api/manage/user/{self.userid}/", {"scan_directory": "/code"}
         )
+
         self.assertEqual(patch_res.status_code, 200)
 
     def test_setup_not_existing_directory(self):
         patch_res = self.client_admin.patch(
-            "/api/manage/user/{}/".format(self.userid),
+            f"/api/manage/user/{self.userid}/",
             {"scan_directory": "/code/not/existing"},
         )
+
         self.assertEqual(patch_res.status_code, 400)
 
 
@@ -231,22 +232,21 @@ class ScanPhotosTestCase(TestCase):
             create_user_res = client.post(
                 "/api/user/",
                 {
-                    "email": "test_user_{}@test.com".format(idx),
-                    "username": "test_user_{}".format(idx),
+                    "email": f"test_user_{idx}@test.com",
+                    "username": f"test_user_{idx}",
                     "password": "test_password",
                 },
             )
+
 
             self.assertEqual(create_user_res.status_code, 201)
             user_ids.append(create_user_res.json()["id"])
 
             login_user_res = client.post(
                 "/api/auth/token/obtain/",
-                {
-                    "username": "test_user_{}".format(idx),
-                    "password": "test_password",
-                },
+                {"username": f"test_user_{idx}", "password": "test_password"},
             )
+
             self.assertEqual(login_user_res.status_code, 200)
 
             client.credentials(
@@ -258,12 +258,13 @@ class ScanPhotosTestCase(TestCase):
         # set scan directories for each user as admin
         for idx, (user_id, client) in enumerate(zip(user_ids, self.client_users)):
 
-            user_scan_directory = os.path.join(samplephotos_dir, "test{}".format(idx))
+            user_scan_directory = os.path.join(samplephotos_dir, f"test{idx}")
             self.assertNotEqual(user_scan_directory, "")
             patch_res = self.client_admin.patch(
-                "/api/manage/user/{}/".format(user_id),
+                f"/api/manage/user/{user_id}/",
                 {"scan_directory": user_scan_directory},
             )
+
             self.assertEqual(patch_res.json(), {})
             self.assertEqual(patch_res.status_code, 200)
             self.assertEqual(patch_res.json()["scan_directory"], user_scan_directory)

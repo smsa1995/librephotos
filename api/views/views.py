@@ -51,7 +51,7 @@ class AlbumDateListWithPhotoHashViewSet(viewsets.ReadOnlyModelViewSet):
     ]
 
     def get_queryset(self):
-        qs = (
+        return (
             AlbumDate.objects.filter(
                 Q(owner=self.request.user) & Q(photos__hidden=False)
             )
@@ -64,11 +64,16 @@ class AlbumDateListWithPhotoHashViewSet(viewsets.ReadOnlyModelViewSet):
                     "photos",
                     queryset=Photo.visible.filter(Q(owner=self.request.user))
                     .order_by("-exif_timestamp")
-                    .only("image_hash", "public", "exif_timestamp", "rating", "hidden"),
+                    .only(
+                        "image_hash",
+                        "public",
+                        "exif_timestamp",
+                        "rating",
+                        "hidden",
+                    ),
                 )
             )
         )
-        return qs
 
     @cache_response(CACHE_TTL, key_func=CustomObjectKeyConstructor())
     def retrieve(self, *args, **kwargs):
@@ -112,12 +117,14 @@ class SiteSettingsView(APIView):
 
     @method_decorator(ensure_csrf_cookie)
     def get(self, request, format=None):
-        out = {}
-        out["allow_registration"] = site_config.ALLOW_REGISTRATION
-        out["allow_upload"] = site_config.ALLOW_UPLOAD
-        out["skip_patterns"] = site_config.SKIP_PATTERNS
-        out["heavyweight_process"] = site_config.HEAVYWEIGHT_PROCESS
-        out["map_api_key"] = site_config.MAP_API_KEY
+        out = {
+            "allow_registration": site_config.ALLOW_REGISTRATION,
+            "allow_upload": site_config.ALLOW_UPLOAD,
+            "skip_patterns": site_config.SKIP_PATTERNS,
+            "heavyweight_process": site_config.HEAVYWEIGHT_PROCESS,
+            "map_api_key": site_config.MAP_API_KEY,
+        }
+
         return Response(out)
 
     def post(self, request, format=None):
@@ -153,10 +160,9 @@ class SetUserAlbumShared(APIView):
             target_user = User.objects.get(id=target_user_id)
         except User.DoesNotExist:
             logger.warning(
-                "Cannot share album to user: target user_id {} does not exist".format(
-                    target_user_id
-                )
+                f"Cannot share album to user: target user_id {target_user_id} does not exist"
             )
+
             return Response(
                 {"status": False, "message": "No such user"}, status_code=400
             )
@@ -165,20 +171,18 @@ class SetUserAlbumShared(APIView):
             user_album_to_share = AlbumUser.objects.get(id=user_album_id)
         except AlbumUser.DoesNotExist:
             logger.warning(
-                "Cannot share album to user: source user_album_id {} does not exist".format(
-                    user_album_id
-                )
+                f"Cannot share album to user: source user_album_id {user_album_id} does not exist"
             )
+
             return Response(
                 {"status": False, "message": "No such album"}, status_code=400
             )
 
         if user_album_to_share.owner != request.user:
             logger.warning(
-                "Cannot share album to user: source user_album_id {} does not belong to user_id {}".format(
-                    user_album_id, request.user.id
-                )
+                f"Cannot share album to user: source user_album_id {user_album_id} does not belong to user_id {request.user.id}"
             )
+
             return Response(
                 {"status": False, "message": "You cannot share an album you don't own"},
                 status_code=400,
@@ -187,17 +191,15 @@ class SetUserAlbumShared(APIView):
         if shared:
             user_album_to_share.shared_to.add(target_user)
             logger.info(
-                "Shared user {}'s album {} to user {}".format(
-                    request.user.id, user_album_id, target_user_id
-                )
+                f"Shared user {request.user.id}'s album {user_album_id} to user {target_user_id}"
             )
+
         else:
             user_album_to_share.shared_to.remove(target_user)
             logger.info(
-                "Unshared user {}'s album {} to user {}".format(
-                    request.user.id, user_album_id, target_user_id
-                )
+                f"Unshared user {request.user.id}'s album {user_album_id} to user {target_user_id}"
             )
+
 
         user_album_to_share.save()
         cache.clear()
@@ -251,7 +253,7 @@ class MediaAccessView(APIView):
     permission_classes = (AllowAny,)
 
     def _get_protected_media_url(self, path, fname):
-        return "protected_media/{}/{}".format(path, fname)
+        return f"protected_media/{path}/{fname}"
 
     # @silk_profile(name='media')
     def get(self, request, path, fname, format=None):
@@ -269,15 +271,13 @@ class MediaAccessView(APIView):
             response["X-Accel-Redirect"] = self._get_protected_media_url(path, fname)
             return response
 
-        # forbid access if trouble with jwt
-        if jwt is not None:
-            try:
-                token = AccessToken(jwt)
-            except TokenError:
-                return HttpResponseForbidden()
-        else:
+        if jwt is None:
             return HttpResponseForbidden()
 
+        try:
+            token = AccessToken(jwt)
+        except TokenError:
+            return HttpResponseForbidden()
         # grant access if the user is owner of the requested photo
         # or the photo is shared with the user
         image_hash = fname.split(".")[0].split("_")[0]  # janky alert
@@ -303,7 +303,7 @@ class MediaAccessFullsizeOriginalView(APIView):
     permission_classes = (AllowAny,)
 
     def _get_protected_media_url(self, path, fname):
-        return "/protected_media{}/{}".format(path, fname)
+        return f"/protected_media{path}/{fname}"
 
     def _transcode_video(self, path):
         ffmpeg_command = [
@@ -317,20 +317,18 @@ class MediaAccessFullsizeOriginalView(APIView):
             "-movflags",
             "frag_keyframe+empty_moov",
             "-filter:v",
-            ("scale=-2:" + str(720)),
+            'scale=-2:720',
             "-f",
             "mp4",
             "-",
         ]
+
         response = subprocess.Popen(
             ffmpeg_command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        response_iterator = iter(response.stdout.readline, b"")
-
-        for resp in response_iterator:
-            yield resp
+        yield from iter(response.stdout.readline, b"")
 
     def _generate_response(self, photo, path, fname, transcode_videos):
         if "thumbnail" in path:
@@ -343,13 +341,15 @@ class MediaAccessFullsizeOriginalView(APIView):
             if "webp" in filename:
                 response["Content-Type"] = "image/webp"
                 response["X-Accel-Redirect"] = self._get_protected_media_url(
-                    path, fname + ".webp"
+                    path, f"{fname}.webp"
                 )
+
             if "mp4" in filename:
                 response["Content-Type"] = "video/mp4"
                 response["X-Accel-Redirect"] = self._get_protected_media_url(
-                    path, fname + ".mp4"
+                    path, f"{fname}.mp4"
                 )
+
             return response
         if "faces" in path:
             response = HttpResponse()
@@ -365,7 +365,6 @@ class MediaAccessFullsizeOriginalView(APIView):
                     self._transcode_video(photo.image_paths[0]),
                     content_type="video/mp4",
                 )
-                return response
             else:
                 response = HttpResponse()
                 response["Content-Type"] = filename
@@ -374,7 +373,7 @@ class MediaAccessFullsizeOriginalView(APIView):
                         ownphotos.settings.DATA_ROOT, "/original"
                     )
                 )
-                return response
+            return response
         # faces and avatars
         response = HttpResponse()
         response["Content-Type"] = "image/jpg"
@@ -384,18 +383,17 @@ class MediaAccessFullsizeOriginalView(APIView):
     def get(self, request, path, fname, format=None):
         if path.lower() == "avatars":
             jwt = request.COOKIES.get("jwt")
-            if jwt is not None:
-                try:
-                    token = AccessToken(jwt)
-                except TokenError:
-                    return HttpResponseForbidden()
-            else:
+            if jwt is None:
+                return HttpResponseForbidden()
+            try:
+                token = AccessToken(jwt)
+            except TokenError:
                 return HttpResponseForbidden()
             try:
                 user = User.objects.filter(id=token["user_id"]).only("id").first()
                 response = HttpResponse()
                 response["Content-Type"] = "image/png"
-                response["X-Accel-Redirect"] = "/protected_media/" + path + "/" + fname
+                response["X-Accel-Redirect"] = f"/protected_media/{path}/{fname}"
                 return response
             except Exception:
                 return HttpResponse(status=404)
@@ -411,15 +409,13 @@ class MediaAccessFullsizeOriginalView(APIView):
             if photo.public:
                 return self._generate_response(photo, path, fname, False)
 
-            # forbid access if trouble with jwt
-            if jwt is not None:
-                try:
-                    token = AccessToken(jwt)
-                except TokenError:
-                    return HttpResponseForbidden()
-            else:
+            if jwt is None:
                 return HttpResponseForbidden()
 
+            try:
+                token = AccessToken(jwt)
+            except TokenError:
+                return HttpResponseForbidden()
             # grant access if the user is owner of the requested photo
             # or the photo is shared with the user
             image_hash = fname.split(".")[0].split("_")[0]  # janky alert
@@ -432,13 +428,11 @@ class MediaAccessFullsizeOriginalView(APIView):
                 return self._generate_response(
                     photo, path, fname, user.transcode_videos
                 )
-            else:
-                for album in photo.albumuser_set.only("shared_to"):
-                    if user in album.shared_to.all():
-                        return self._generate_response(
-                            photo, path, fname, user.transcode_videos
-                        )
-            return HttpResponse(status=404)
+            for album in photo.albumuser_set.only("shared_to"):
+                if user in album.shared_to.all():
+                    return self._generate_response(
+                        photo, path, fname, user.transcode_videos
+                    )
         else:
             jwt = request.COOKIES.get("jwt")
             image_hash = fname.split(".")[0].split("_")[0]
@@ -453,7 +447,7 @@ class MediaAccessFullsizeOriginalView(APIView):
                 )
                 internal_path = "/nextcloud_original" + photo.image_paths[0][21:]
             if photo.image_paths[0].startswith("/data/"):
-                internal_path = "/original" + photo.image_paths[0][5:]
+                internal_path = f"/original{photo.image_paths[0][5:]}"
 
             # grant access if the requested photo is public
             if photo.public:
@@ -462,15 +456,13 @@ class MediaAccessFullsizeOriginalView(APIView):
                 response["X-Accel-Redirect"] = internal_path
                 return response
 
-            # forbid access if trouble with jwt
-            if jwt is not None:
-                try:
-                    token = AccessToken(jwt)
-                except TokenError:
-                    return HttpResponseForbidden()
-            else:
+            if jwt is None:
                 return HttpResponseForbidden()
 
+            try:
+                token = AccessToken(jwt)
+            except TokenError:
+                return HttpResponseForbidden()
             # grant access if the user is owner of the requested photo
             # or the photo is shared with the user
             image_hash = fname.split(".")[0].split("_")[0]  # janky alert
@@ -487,7 +479,8 @@ class MediaAccessFullsizeOriginalView(APIView):
                         response["Content-Type"] = "image/jpeg"
                         response["X-Accel-Redirect"] = internal_path
                         return response
-            return HttpResponse(status=404)
+
+        return HttpResponse(status=404)
 
 
 class ZipListPhotosView(APIView):
@@ -507,7 +500,7 @@ class ZipListPhotosView(APIView):
                 photo_name = os.path.basename(photo.image_paths[0])
                 if photo_name in photos_name:
                     photos_name[photo_name] = photos_name[photo_name] + 1
-                    photo_name = str(photos_name[photo_name]) + "-" + photo_name
+                    photo_name = f"{str(photos_name[photo_name])}-{photo_name}"
                 else:
                     photos_name[photo_name] = 1
                 with zipfile.ZipFile(

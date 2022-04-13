@@ -60,7 +60,7 @@ def createThumbnail(inputPath, outputHeight, outputPath, hash, fileType):
             with Image(filename=inputPath) as img:
                 with img.clone() as thumbnail:
                     thumbnail.format = "webp"
-                    thumbnail.transform(resize="x" + str(outputHeight))
+                    thumbnail.transform(resize=f"x{str(outputHeight)}")
                     thumbnail.compression_quality = 95
                     thumbnail.auto_orient()
                     thumbnail.save(filename=completePath)
@@ -79,7 +79,6 @@ def createThumbnail(inputPath, outputHeight, outputPath, hash, fileType):
                 ownphotos.settings.MEDIA_ROOT, outputPath, hash + fileType
             ).strip()
             x.write_to_file(completePath, Q=95)
-        return completePath
     else:
         x = pyvips.Image.thumbnail(
             inputPath, 10000, height=outputHeight, size=pyvips.enums.Size.DOWN
@@ -88,7 +87,8 @@ def createThumbnail(inputPath, outputHeight, outputPath, hash, fileType):
             ownphotos.settings.MEDIA_ROOT, outputPath, hash + fileType
         ).strip()
         x.write_to_file(completePath)
-        return completePath
+
+    return completePath
 
 
 def createAnimatedThumbnail(inputPath, outputHeight, outputPath, hash, fileType):
@@ -108,7 +108,7 @@ def createAnimatedThumbnail(inputPath, outputHeight, outputPath, hash, fileType)
             "20",
             "-an",
             "-filter:v",
-            ("scale=-2:" + str(outputHeight)),
+            f"scale=-2:{str(outputHeight)}",
             output,
         ]
     )

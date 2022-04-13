@@ -45,5 +45,4 @@ def build_ego_graph(person_id):
             G.add_edge(person.name, other_person_face.person.name)
     nodes = [{"id": node} for node in G.nodes()]
     links = [{"source": pair[0], "target": pair[1]} for pair in G.edges()]
-    res = {"nodes": nodes, "links": links}
-    return res
+    return {"nodes": nodes, "links": links}

@@ -57,20 +57,20 @@ class AlbumAuto(models.Model):
                     photo.geolocation_json
                     and "features" in photo.geolocation_json.keys()
                 ):
-                    for feature in photo.geolocation_json["features"]:
-                        if feature["place_type"][0] == "place":
-                            places.append(feature["text"])
+                    places.extend(
+                        feature["text"]
+                        for feature in photo.geolocation_json["features"]
+                        if feature["place_type"][0] == "place"
+                    )
 
                 timestamps.append(photo.exif_timestamp)
 
                 faces = photo.faces.all()
-                for face in faces:
-                    people.append(face.person.name)
-
-            if len(places) > 0:
+                people.extend(face.person.name for face in faces)
+            if places:
                 cnts_places = Counter(places)
                 loc = "in " + " and ".join(dict(cnts_places.most_common(2)).keys())
-            if len(people) > 0:
+            if people:
                 cnts_people = Counter(people)
                 names = dict(
                     [
@@ -81,7 +81,7 @@ class AlbumAuto(models.Model):
                 ).keys()
                 if len(names) > 0:
                     pep = "with " + " and ".join(names)
-            if len(timestamps) > 0:
+            if timestamps:
                 if (max(timestamps) - min(timestamps)).days >= 3:
                     when = "%d days" % ((max(timestamps) - min(timestamps)).days)
 
@@ -89,7 +89,7 @@ class AlbumAuto(models.Model):
                 if (
                     max(timestamps).weekday() in weekend
                     and min(timestamps).weekday() in weekend
-                    and not (max(timestamps).weekday() == min(timestamps).weekday())
+                    and max(timestamps).weekday() != min(timestamps).weekday()
                 ):
                     when = "Weekend"
 

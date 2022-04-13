@@ -64,15 +64,13 @@ def mapbox_reverse_geocode(lat, lon):
         resp_json = resp.json()
         search_terms = []
         if "features" in resp_json.keys():
-            for feature in resp_json["features"]:
-                search_terms.append(feature["text"])
-
+            search_terms.extend(feature["text"] for feature in resp_json["features"])
         resp_json["search_text"] = " ".join(search_terms)
         logger.info("mapbox returned status 200.")
         return resp_json
     else:
         # logger.info('mapbox returned non 200 response.')
-        logger.warning("mapbox returned status {} response.".format(resp.status_code))
+        logger.warning(f"mapbox returned status {resp.status_code} response.")
         return {}
 
 
@@ -84,10 +82,10 @@ def get_sidecar_files_in_priority_order(media_file):
     """
     image_basename = os.path.splitext(media_file)[0]
     return [
-        image_basename + ".xmp",
-        image_basename + ".XMP",
-        media_file + ".xmp",
-        media_file + ".XMP",
+        f"{image_basename}.xmp",
+        f"{image_basename}.XMP",
+        f"{media_file}.xmp",
+        f"{media_file}.XMP",
     ]
 
 

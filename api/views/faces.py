@@ -65,8 +65,7 @@ class FaceInferredListViewSet(viewsets.ModelViewSet):
     pagination_class = HugeResultsSetPagination
 
     def get_queryset(self):
-        # Todo: optimze query by only prefetching relevant models & fields
-        queryset = (
+        return (
             Face.objects.filter(
                 Q(photo__hidden=False)
                 & Q(photo__owner=self.request.user)
@@ -75,7 +74,6 @@ class FaceInferredListViewSet(viewsets.ModelViewSet):
             .select_related("person")
             .order_by("id")
         )
-        return queryset
 
     @cache_response(CACHE_TTL, key_func=CustomObjectKeyConstructor())
     def retrieve(self, *args, **kwargs):
@@ -92,8 +90,7 @@ class FaceLabeledListViewSet(viewsets.ModelViewSet):
     pagination_class = HugeResultsSetPagination
 
     def get_queryset(self):
-        # Todo: optimze query by only prefetching relevant models & fields
-        queryset = (
+        return (
             Face.objects.filter(
                 Q(photo__hidden=False) & Q(photo__owner=self.request.user),
                 Q(person_label_is_inferred=False) | Q(person__name="unknown"),
@@ -101,7 +98,6 @@ class FaceLabeledListViewSet(viewsets.ModelViewSet):
             .select_related("person")
             .order_by("id")
         )
-        return queryset
 
     @cache_response(CACHE_TTL, key_func=CustomObjectKeyConstructor())
     def retrieve(self, *args, **kwargs):

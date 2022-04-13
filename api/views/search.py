@@ -38,10 +38,10 @@ class SearchListViewSet(viewsets.ModelViewSet):
             )
             grouped_photos = get_photos_ordered_by_date(queryset)
             serializer = GroupedPhotosSerializer(grouped_photos, many=True)
-            return Response({"results": serializer.data})
         else:
             queryset = self.filter_queryset(
                 Photo.visible.filter(Q(owner=self.request.user))
             )
             serializer = PigPhotoSerilizer(queryset, many=True)
-            return Response({"results": serializer.data})
+
+        return Response({"results": serializer.data})

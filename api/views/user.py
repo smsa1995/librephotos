@@ -57,7 +57,7 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = (IsUserOrReadOnly,)
 
     def get_queryset(self):
-        queryset = User.objects.only(
+        return User.objects.only(
             "id",
             "username",
             "email",
@@ -78,15 +78,12 @@ class UserViewSet(viewsets.ModelViewSet):
             "datetime_rules",
             "default_timezone",
         ).order_by("-last_login")
-        return queryset
 
     def get_permissions(self):
         if self.action == "create":
             self.permission_classes = [IsRegistrationAllowed | FirstTimeSetupPermission]
             cache.clear()
-        elif self.action == "list":
-            self.permission_classes = (AllowAny,)
-        elif self.request.method == "GET" or self.request.method == "POST":
+        elif self.action == "list" or self.request.method in ["GET", "POST"]:
             self.permission_classes = (AllowAny,)
         else:
             self.permission_classes = (IsUserOrReadOnly,)

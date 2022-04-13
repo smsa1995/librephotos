@@ -27,13 +27,17 @@ from api.util import logger
 
 
 def get_current_job():
-    job_detail = None
-    running_job = (
-        LongRunningJob.objects.filter(finished=False).order_by("-started_at").first()
+    return (
+        LongRunningJobSerializer(running_job).data
+        if (
+            running_job := (
+                LongRunningJob.objects.filter(finished=False)
+                .order_by("-started_at")
+                .first()
+            )
+        )
+        else None
     )
-    if running_job:
-        job_detail = LongRunningJobSerializer(running_job).data
-    return job_detail
 
 
 def shuffle(list):
@@ -105,32 +109,28 @@ def get_location_timeline(user):
     for idx, group in enumerate(groups):
         city = group[0][1]
         start = group[0][0]
-        if idx < len(groups) - 1:
-            end = groups[idx + 1][0][0]
-        else:
-            end = group[-1][0]
+        end = groups[idx + 1][0][0] if idx < len(groups) - 1 else group[-1][0]
         time_in_city = (end - start).total_seconds()
 
         if time_in_city > 0:
             city_start_end_duration.append([city, start, end, time_in_city])
 
-    locs = list(set([e[0] for e in city_start_end_duration]))
+    locs = list({e[0] for e in city_start_end_duration})
     colors = sns.color_palette("Paired", len(locs)).as_hex()
 
     loc2color = dict(zip(locs, colors))
 
-    intervals_in_seconds = []
-    for idx, sted in enumerate(city_start_end_duration):
-        intervals_in_seconds.append(
-            {
-                "loc": sted[0],
-                "start": sted[1].timestamp(),
-                "end": sted[2].timestamp(),
-                "dur": sted[2].timestamp() - sted[1].timestamp(),
-            }
-        )
+    intervals_in_seconds = [
+        {
+            "loc": sted[0],
+            "start": sted[1].timestamp(),
+            "end": sted[2].timestamp(),
+            "dur": sted[2].timestamp() - sted[1].timestamp(),
+        }
+        for sted in city_start_end_duration
+    ]
 
-    data = [
+    return [
         {
             "data": [d["dur"]],
             "color": loc2color[d["loc"]],
@@ -140,7 +140,6 @@ def get_location_timeline(user):
         }
         for d in intervals_in_seconds
     ]
-    return data
 
 
 def get_search_term_examples(user):
@@ -296,7 +295,7 @@ def get_count_stats(user):
         .count()
     )
 
-    res = {
+    return {
         "num_photos": num_photos,
         "num_missing_photos": num_missing_photos,
         "num_faces": num_faces,
@@ -308,7 +307,6 @@ def get_count_stats(user):
         "num_albumdate": num_albumdate,
         "num_albumuser": num_albumuser,
     }
-    return res
 
 
 def get_location_clusters(user):
@@ -324,9 +322,11 @@ def get_location_clusters(user):
     paginator = Paginator(photos, 5000)
     for page in range(1, paginator.num_pages + 1):
         for p in paginator.page(page).object_list:
-            for feature in p.geolocation_json["features"]:
-                if not feature["text"].isdigit():
-                    coord_names.append([feature["text"], feature["center"]])
+            coord_names.extend(
+                [feature["text"], feature["center"]]
+                for feature in p.geolocation_json["features"]
+                if not feature["text"].isdigit()
+            )
 
     groups = []
     uniquekeys = []
@@ -335,10 +335,9 @@ def get_location_clusters(user):
         groups.append(list(g))  # Store group iterator as a list
         uniquekeys.append(k)
 
-    res = [[g[0][1][1], g[0][1][0], g[0][0]] for g in groups]
     elapsed = (datetime.now() - start).total_seconds()
     logger.info("location clustering took %.2f seconds" % elapsed)
-    return res
+    return [[g[0][1][1], g[0][1][0], g[0][0]] for g in groups]
 
 
 def get_photo_country_counts(user):
@@ -347,12 +346,13 @@ def get_photo_country_counts(user):
     countries = []
     for gl in geolocations:
         if "features" in gl.keys():
-            for feature in gl["features"]:
-                if feature["place_type"][0] == "country":
-                    countries.append(feature["place_name"])
+            countries.extend(
+                feature["place_name"]
+                for feature in gl["features"]
+                if feature["place_type"][0] == "country"
+            )
 
-    counts = Counter(countries)
-    return counts
+    return Counter(countries)
 
 
 def get_location_sunburst(user):
@@ -367,13 +367,14 @@ def get_location_sunburst(user):
     geolocations = []
     paginator = Paginator(photos_with_gps, 5000)
     for page in range(1, paginator.num_pages + 1):
-        for p in paginator.page(page).object_list:
-            geolocations.append(p.geolocation_json)
+        geolocations.extend(
+            p.geolocation_json for p in paginator.page(page).object_list
+        )
 
     four_levels = []
     for gl in geolocations:
-        out_dict = {}
         if "features" in gl.keys():
+            out_dict = {}
             if len(gl["features"]) >= 1:
                 out_dict[1] = gl["features"][-1]["text"]
             if len(gl["features"]) >= 2:
@@ -413,11 +414,12 @@ def get_location_sunburst(user):
             if i == len(data[1]) - 3:
                 depth_cursor.append(
                     {
-                        "name": "{}".format(list(data[1])[-2]),
+                        "name": f"{list(data[1])[-2]}",
                         "value": list(data[1])[-1],
                         "hex": random.choice(palette),
                     }
                 )
+
 
     return data_structure
 
@@ -432,78 +434,47 @@ def get_photo_month_counts(user):
         .values("month", "c")
     )
 
-    all_months = [
-        c["month"]
-        for c in counts
-        if c["month"].year >= 2000 and c["month"].year <= datetime.now().year
-    ]
-
-    if len(all_months) > 0:
-
-        first_month = min(all_months)
-        last_month = max(all_months)
-
-        month_span = jump_by_month(first_month, last_month)
-        counts = sorted(counts, key=lambda k: k["month"])
-
-        res = []
-        for count in counts:
-            key = "-".join([str(count["month"].year), str(count["month"].month)])
-            count = count["c"]
-            res.append([key, count])
-        res = dict(res)
-
-        out = []
-        for month in month_span:
-            m = "-".join([str(month.year), str(month.month)])
-            if m in res.keys():
-                out.append({"month": m, "count": res[m]})
-            else:
-                out.append({"month": m, "count": 0})
-
-        return out
-    else:
+    if not (
+        all_months := [
+            c["month"]
+            for c in counts
+            if c["month"].year >= 2000
+            and c["month"].year <= datetime.now().year
+        ]
+    ):
         return []
+    first_month = min(all_months)
+    last_month = max(all_months)
+
+    month_span = jump_by_month(first_month, last_month)
+    counts = sorted(counts, key=lambda k: k["month"])
+
+    res = []
+    for count in counts:
+        key = "-".join([str(count["month"].year), str(count["month"].month)])
+        count = count["c"]
+        res.append([key, count])
+    res = dict(res)
+
+    out = []
+    for month in month_span:
+        m = "-".join([str(month.year), str(month.month)])
+        if m in res:
+            out.append({"month": m, "count": res[m]})
+        else:
+            out.append({"month": m, "count": 0})
+
+    return out
 
 
 def get_searchterms_wordcloud(user):
-    query = {}
     out = {"captions": [], "people": [], "locations": []}
-    query[
-        "captions"
-    ] = """
-        with captionList as (
-            select unnest(regexp_split_to_array(search_captions,' , ')) caption
-            from api_photo where owner_id = %(userid)s
-        )
-        select caption, count(*) from captionList group by caption order by count(*) desc limit 100;
-    """
-    query[
-        "people"
-    ] = """
-        with NameList as (
-            select api_person.name
-            from api_photo join api_face on image_hash = api_face.photo_id
-            join api_person on person_id = api_person.id
-            where owner_id = %(userid)s
-        )
-        select name, count(*) from NameList group by name order by count(*) desc limit 100;
-    """
-    query[
-        "locations"
-    ] = """
-         with arrayloctable as (
-            select jsonb_array_elements(jsonb_extract_path(api_photo.geolocation_json,  'features')::jsonb) arrayloc , image_hash
-            from api_photo where owner_id = %(userid)s
-        ), loctable as (
-            select jsonb_array_elements(jsonb_extract_path(arrayloc,'place_type'))::text as "key",
-            replace(jsonb_extract_path(arrayloc,'text')::text,'"','') as "value", image_hash
-            from arrayloctable
-        ), OneWordPerPhoto as (  -- "key" values can be : "place","locality","address","region","postcode","country","poi"
-            select "value", image_hash from loctable where "key" not in ('"postcode"','"poi"') group by "value", image_hash
-        )
-        select "value", count(*) from OneWordPerPhoto group by "value" order by count(*) desc limit 100
-    """
+    query = {
+        "captions": """\x1f        with captionList as (\x1f            select unnest(regexp_split_to_array(search_captions,' , ')) caption\x1f            from api_photo where owner_id = %(userid)s\x1f        )\x1f        select caption, count(*) from captionList group by caption order by count(*) desc limit 100;\x1f    """,
+        "people": """\x1f        with NameList as (\x1f            select api_person.name\x1f            from api_photo join api_face on image_hash = api_face.photo_id\x1f            join api_person on person_id = api_person.id\x1f            where owner_id = %(userid)s\x1f        )\x1f        select name, count(*) from NameList group by name order by count(*) desc limit 100;\x1f    """,
+        "locations": """\x1f         with arrayloctable as (\x1f            select jsonb_array_elements(jsonb_extract_path(api_photo.geolocation_json,  'features')::jsonb) arrayloc , image_hash\x1f            from api_photo where owner_id = %(userid)s\x1f        ), loctable as (\x1f            select jsonb_array_elements(jsonb_extract_path(arrayloc,'place_type'))::text as "key",\x1f            replace(jsonb_extract_path(arrayloc,'text')::text,'"','') as "value", image_hash\x1f            from arrayloctable\x1f        ), OneWordPerPhoto as (  -- "key" values can be : "place","locality","address","region","postcode","country","poi"\x1f            select "value", image_hash from loctable where "key" not in ('"postcode"','"poi"') group by "value", image_hash\x1f        )\x1f        select "value", count(*) from OneWordPerPhoto group by "value" order by count(*) desc limit 100\x1f    """,
+    }
+
     for type in ("captions", "people", "locations"):
         with connection.cursor() as cursor:
             cursor.execute(query[type], {"userid": user.id})

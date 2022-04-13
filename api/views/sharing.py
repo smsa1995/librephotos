@@ -50,7 +50,7 @@ class SharedFromMePhotoSuperSimpleListViewSet(viewsets.ModelViewSet):
     pagination_class = HugeResultsSetPagination
 
     def get_queryset(self):
-        qs = (
+        return (
             Photo.objects.filter(hidden=False)
             .prefetch_related("owner")
             .prefetch_related(
@@ -76,7 +76,6 @@ class SharedFromMePhotoSuperSimpleListViewSet(viewsets.ModelViewSet):
             .distinct()
             .order_by("exif_timestamp")
         )
-        return qs
 
 
 class SharedFromMePhotoSuperSimpleListViewSet2(viewsets.ModelViewSet):
@@ -90,7 +89,7 @@ class SharedFromMePhotoSuperSimpleListViewSet2(viewsets.ModelViewSet):
         user_photos = Photo.visible.filter(Q(owner=self.request.user.id)).only(
             "image_hash"
         )
-        qs = (
+        return (
             ThroughModel.objects.filter(photo_id__in=user_photos)
             .prefetch_related(
                 Prefetch(
@@ -104,13 +103,16 @@ class SharedFromMePhotoSuperSimpleListViewSet2(viewsets.ModelViewSet):
                 Prefetch(
                     "photo",
                     queryset=Photo.objects.filter(hidden=False).only(
-                        "image_hash", "rating", "hidden", "exif_timestamp", "public"
+                        "image_hash",
+                        "rating",
+                        "hidden",
+                        "exif_timestamp",
+                        "public",
                     ),
                 )
             )
             .order_by("photo__exif_timestamp")
         )
-        return qs
 
 
 class SharedToMeAlbumAutoListViewSet(viewsets.ModelViewSet):

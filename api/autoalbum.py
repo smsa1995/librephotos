@@ -24,7 +24,6 @@ def regenerate_event_titles(user, job_id):
     if LongRunningJob.objects.filter(job_id=job_id).exists():
         lrj = LongRunningJob.objects.get(job_id=job_id)
         lrj.started_at = datetime.now().replace(tzinfo=pytz.utc)
-        lrj.save()
     else:
         lrj = LongRunningJob.objects.create(
             started_by=user,
@@ -33,12 +32,12 @@ def regenerate_event_titles(user, job_id):
             started_at=datetime.now().replace(tzinfo=pytz.utc),
             job_type=LongRunningJob.JOB_GENERATE_AUTO_ALBUM_TITLES,
         )
-        lrj.save()
+    lrj.save()
     try:
         aus = AlbumAuto.objects.filter(owner=user).prefetch_related("photos")
         target_count = len(aus)
         for idx, au in enumerate(aus):
-            logger.info("job {}: {}".format(job_id, idx))
+            logger.info(f"job {job_id}: {idx}")
             au._generate_title()
             au.save()
 
@@ -48,7 +47,7 @@ def regenerate_event_titles(user, job_id):
         lrj.finished = True
         lrj.finished_at = datetime.now().replace(tzinfo=pytz.utc)
         lrj.save()
-        logger.info("job {}: updated lrj entry to db".format(job_id))
+        logger.info(f"job {job_id}: updated lrj entry to db")
 
     except Exception:
         logger.exception("An error occured")
@@ -91,16 +90,12 @@ def generate_event_albums(user, job_id):
             photos_with_timestamp = sorted(photos_with_timestamp, key=lambda x: x[0])
             groups = []
             for idx, photo in enumerate(photos_with_timestamp):
-                if len(groups) == 0:
+                if not groups:
                     groups.append([])
-                    groups[-1].append(photo[1])
-                else:
-                    if photo[0] - groups[-1][-1].exif_timestamp < dt:
-                        groups[-1].append(photo[1])
-                    else:
-                        groups.append([])
-                        groups[-1].append(photo[1])
-                logger.info("job {}: {}".format(job_id, idx))
+                elif photo[0] - groups[-1][-1].exif_timestamp >= dt:
+                    groups.append([])
+                groups[-1].append(photo[1])
+                logger.info(f"job {job_id}: {idx}")
             return groups
 
         groups = group(photos_with_timestamp, dt=timedelta(days=1, hours=12))
@@ -194,7 +189,6 @@ def delete_missing_photos(user, job_id):
     if LongRunningJob.objects.filter(job_id=job_id).exists():
         lrj = LongRunningJob.objects.get(job_id=job_id)
         lrj.started_at = datetime.now().replace(tzinfo=pytz.utc)
-        lrj.save()
     else:
         lrj = LongRunningJob.objects.create(
             started_by=user,
@@ -203,7 +197,7 @@ def delete_missing_photos(user, job_id):
             started_at=datetime.now().replace(tzinfo=pytz.utc),
             job_type=LongRunningJob.JOB_DELETE_MISSING_PHOTOS,
         )
-        lrj.save()
+    lrj.save()
     try:
         missing_photos = Photo.objects.filter(Q(owner=user) & Q(image_paths=[]))
         for missing_photo in missing_photos:

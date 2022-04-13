@@ -110,12 +110,13 @@ def main():
                 torch.save(
                     decoder.state_dict(),
                     os.path.join(
-                        model_path, "decoder-{}-{}.ckpt".format(epoch + 1, i + 1)
+                        model_path, f"decoder-{epoch + 1}-{i + 1}.ckpt"
                     ),
                 )
+
                 torch.save(
                     encoder.state_dict(),
                     os.path.join(
-                        model_path, "encoder-{}-{}.ckpt".format(epoch + 1, i + 1)
+                        model_path, f"encoder-{epoch + 1}-{i + 1}.ckpt"
                     ),
                 )

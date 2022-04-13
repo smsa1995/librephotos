@@ -25,9 +25,7 @@ class Vocabulary(object):
             self.idx += 1
 
     def __call__(self, word):
-        if word not in self.word2idx:
-            return self.word2idx["<unk>"]
-        return self.word2idx[word]
+        return self.word2idx[word] if word in self.word2idx else self.word2idx["<unk>"]
 
     def __len__(self):
         return len(self.word2idx)
@@ -57,7 +55,7 @@ def build_vocab(json, threshold):
     vocab.add_word("<unk>")
 
     # Add the words to the vocabulary.
-    for i, word in enumerate(words):
+    for word in words:
         vocab.add_word(word)
     return vocab
 
@@ -66,5 +64,5 @@ def main():
     vocab = build_vocab(json=caption_path, threshold=threshold)
     with open(vocab_path, "wb") as f:
         pickle.dump(vocab, f)
-    print("Total vocabulary size: {}".format(len(vocab)))
-    print("Saved the vocabulary wrapper to '{}'".format(vocab_path))
+    print(f"Total vocabulary size: {len(vocab)}")
+    print(f"Saved the vocabulary wrapper to '{vocab_path}'")
