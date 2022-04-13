@@ -15,10 +15,7 @@ def queue_can_accept_job():
     ][0]
     started_jobs = default_queue_stat["started_jobs"]
     runninb_jobs = default_queue_stat["jobs"]
-    if started_jobs + runninb_jobs > 0:
-        return False
-    else:
-        return True
+    return started_jobs + runninb_jobs <= 0
 
 
 class LongRunningJobViewSet(viewsets.ModelViewSet):
@@ -31,12 +28,11 @@ class QueueAvailabilityView(APIView):
     def get(self, request, format=None):
         job_detail = None
 
-        running_job = (
+        if running_job := (
             LongRunningJob.objects.filter(finished=False)
             .order_by("-started_at")
             .first()
-        )
-        if running_job:
+        ):
             job_detail = LongRunningJobSerializer(running_job).data
 
         return Response(

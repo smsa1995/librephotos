@@ -33,11 +33,7 @@ class SearchIndex(Resource):
 
             user_id = request_body["user_id"]
             image_embedding = request_body["image_embedding"]
-            if "n" in request_body.keys():
-                n = int(request_body["n"])
-            else:
-                n = 100
-
+            n = int(request_body["n"]) if "n" in request_body.keys() else 100
             if "threshold" in request_body.keys():
                 thres = float(request_body["threshold"])
             else:

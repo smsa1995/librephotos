@@ -44,11 +44,10 @@ class IsPhotoOrAlbumSharedTo(permissions.BasePermission):
         if obj.owner == request.user or request.user in obj.shared_to.all():
             return True
 
-        for album in obj.albumuser_set.only("shared_to"):
-            if request.user in album.shared_to.all():
-                return True
-
-        return False
+        return any(
+            request.user in album.shared_to.all()
+            for album in obj.albumuser_set.only("shared_to")
+        )
 
 
 class IsRegistrationAllowed(permissions.BasePermission):

@@ -25,12 +25,11 @@ class OptimizeRelatedModelViewSetMetaclass(type):
             for field_name, relation_info in info.relations.items()
             if relation_info.to_many
         ]
-        many_to_many_lookups = []
-        for lookup_name, lookup in cls.get_lookups(meta_fields):
-            if lookup_name in many_to_many_fields:
-                many_to_many_lookups.append(lookup)
-
-        return many_to_many_lookups
+        return [
+            lookup
+            for lookup_name, lookup in cls.get_lookups(meta_fields)
+            if lookup_name in many_to_many_fields
+        ]
 
     @classmethod
     def get_lookups(cls, fields, strict=False):
@@ -51,11 +50,14 @@ class OptimizeRelatedModelViewSetMetaclass(type):
             pass
         else:
             if fields:
-                forward_many_to_many_rel = []
-                for lookup_name, lookup in cls.get_lookups(meta_fields, strict=True):
-                    if lookup_name in fields:
-                        forward_many_to_many_rel.append(lookup)
-                return forward_many_to_many_rel
+                return [
+                    lookup
+                    for lookup_name, lookup in cls.get_lookups(
+                        meta_fields, strict=True
+                    )
+                    if lookup_name in fields
+                ]
+
         return []
 
     @classmethod

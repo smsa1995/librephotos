@@ -77,16 +77,14 @@ class UploadPhotosChunkedComplete(ChunkedUploadCompleteView):
         photo = uploaded_file
         image_hash = calculate_hash_b64(user, io.BytesIO(photo.read()))
         if not Photo.objects.filter(image_hash=image_hash).exists():
-            if not os.path.exists(
-                os.path.join(user.scan_directory, "uploads", device, filename)
-            ):
-                photo_path = os.path.join(
-                    user.scan_directory, "uploads", device, filename
+            photo_path = (
+                os.path.join(user.scan_directory, "uploads", device, image_hash)
+                if os.path.exists(
+                    os.path.join(user.scan_directory, "uploads", device, filename)
                 )
-            else:
-                photo_path = os.path.join(
-                    user.scan_directory, "uploads", device, image_hash
-                )
+                else os.path.join(user.scan_directory, "uploads", device, filename)
+            )
+
             with open(photo_path, "wb") as f:
                 photo.seek(0)
                 f.write(photo.read())

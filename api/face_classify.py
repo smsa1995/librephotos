@@ -19,28 +19,27 @@ def cluster_faces(user, inferred=True):
     persons = [p.id for p in Person.objects.filter(faces__photo__owner=user).distinct()]
     p2c = dict(zip(persons, sns.color_palette(n_colors=len(persons)).as_hex()))
 
-    face_encoding = []
     faces = Face.objects.filter(photo__owner=user)
-    for face in faces:
-        if (not face.person_label_is_inferred) or inferred:
-            face_encoding.append(np.frombuffer(bytes.fromhex(face.encoding)))
+    face_encoding = [
+        np.frombuffer(bytes.fromhex(face.encoding))
+        for face in faces
+        if (not face.person_label_is_inferred) or inferred
+    ]
 
     pca = PCA(n_components=3)
     vis_all = pca.fit_transform(face_encoding)
 
-    res = []
-    for face, vis in zip(faces, vis_all):
-        res.append(
-            {
-                "person_id": face.person.id,
-                "person_name": face.person.name,
-                "person_label_is_inferred": face.person_label_is_inferred,
-                "color": p2c[face.person.id],
-                "face_url": face.image.url,
-                "value": {"x": vis[0], "y": vis[1], "size": vis[2]},
-            }
-        )
-    return res
+    return [
+        {
+            "person_id": face.person.id,
+            "person_name": face.person.name,
+            "person_label_is_inferred": face.person_label_is_inferred,
+            "color": p2c[face.person.id],
+            "face_url": face.image.url,
+            "value": {"x": vis[0], "y": vis[1], "size": vis[2]},
+        }
+        for face, vis in zip(faces, vis_all)
+    ]
 
 
 def cluster_unknown_faces(user, job_id):
@@ -72,24 +71,25 @@ def cluster_unknown_faces(user, job_id):
         # to the “outlier” class where a 128-d embedding was too far away from any other clusters to be added to it.
         # “outliers” could either be worth examining or simply discarding based on the application of face clustering.
         numUniqueFaces = len(np.where(labelIDs > -1)[0])
-        print("[INFO] # unique faces: {}".format(numUniqueFaces))
+        print(f"[INFO] # unique faces: {numUniqueFaces}")
 
         # loop over the unique face integers
         for labelID in labelIDs:
             if labelID > -1:
                 # find all indexes into the `data` array that belong to the
                 # current label ID
-                print("[INFO] faces for face ID: {}".format(labelID))
+                print(f"[INFO] faces for face ID: {labelID}")
                 idxs = np.where(clt.labels_ == labelID)[0]
                 # Add a new person to the database for the current label ID
                 new_person = Person()
-                new_person.name = "Group" + str(labelID) + str(job_id)
+                new_person.name = f"Group{str(labelID)}{str(job_id)}"
                 new_person.save()
                 # loop over the sampled indexes
                 for i in idxs:
                     new_person = Person.objects.filter(
-                        name="Group" + str(labelID) + str(job_id)
+                        name=f"Group{str(labelID)}{str(job_id)}"
                     ).first()
+
                     # find the face id for the face in the current image
                     face_id = data["unknown"]["id"][i]
                     face = Face.objects.filter(id=face_id).first()

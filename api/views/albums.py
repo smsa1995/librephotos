@@ -115,7 +115,7 @@ class PersonViewSet(viewsets.ModelViewSet):
     search_fields = ["name"]
 
     def get_queryset(self):
-        qs = (
+        return (
             Person.objects.filter(
                 Q(faces__photo__hidden=False)
                 & Q(faces__photo__deleted=False)
@@ -127,7 +127,6 @@ class PersonViewSet(viewsets.ModelViewSet):
             .filter(Q(viewable_face_count__gt=0))
             .order_by("name")
         )
-        return qs
 
     def retrieve(self, *args, **kwargs):
         return super(PersonViewSet, self).retrieve(*args, **kwargs)
@@ -271,14 +270,14 @@ class AlbumUserViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        qs = (
+        return (
             AlbumUser.objects.filter(
-                Q(owner=self.request.user) | Q(shared_to__exact=self.request.user.id)
+                Q(owner=self.request.user)
+                | Q(shared_to__exact=self.request.user.id)
             )
             .distinct("id")
             .order_by("-id")
         )
-        return qs
 
     def retrieve(self, *args, **kwargs):
         return super(AlbumUserViewSet, self).retrieve(*args, **kwargs)

@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/1.11/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
+
 import datetime
 import os
 
@@ -23,7 +24,7 @@ for envvar in (
     "DB_PORT",
 ):
     if envvar not in os.environ:
-        raise NameError("Environnement variable not set :" + envvar)
+        raise NameError(f"Environnement variable not set :{envvar}")
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -81,7 +82,8 @@ HEAVYWEIGHT_PROCESS = (
 CONSTANCE_CONFIG = {
     "ALLOW_REGISTRATION": (False, "Publicly allow user registration", bool),
     "ALLOW_UPLOAD": (
-        not os.environ.get("ALLOW_UPLOAD", "True") in ("false", "False", "0", "f"),
+        os.environ.get("ALLOW_UPLOAD", "True")
+        not in ("false", "False", "0", "f"),
         "Allow uploading files",
         bool,
     ),
@@ -95,9 +97,14 @@ CONSTANCE_CONFIG = {
         "Number of workers, when scanning pictures. This setting can dramatically affect the ram usage. Each worker needs 800MB of RAM. Change at your own will. Default is 1.",
         int,
     ),
-    "MAP_API_KEY": (os.environ.get("MAPBOX_API_KEY", ""), "Map Box API Key", str),
+    "MAP_API_KEY": (
+        os.environ.get("MAPBOX_API_KEY", ""),
+        "Map Box API Key",
+        str,
+    ),
     "IMAGE_DIRS": ("/data", "Image dirs list (serialized json)", str),
 }
+
 
 INTERNAL_IPS = ("127.0.0.1", "localhost", "192.168.1.100")
 
@@ -199,11 +206,7 @@ else:
     redis_path = "redis://" + os.environ["REDIS_HOST"]
     redis_path += ":" + os.environ["REDIS_PORT"] + "/1"
 
-if "REDIS_PASS" in os.environ:
-    redis_password = os.environ["REDIS_PASS"]
-else:
-    redis_password = ""
-
+redis_password = os.environ["REDIS_PASS"] if "REDIS_PASS" in os.environ else ""
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",

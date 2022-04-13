@@ -162,14 +162,15 @@ class Photo(models.Model):
             if commit:
                 self.save()
             util.logger.info(
-                "generated im2txt captions for image %s. caption: %s"
-                % (image_path, caption)
+                f"generated im2txt captions for image {image_path}. caption: {caption}"
             )
+
             return True
         except Exception:
             util.logger.warning(
-                "could not generate im2txt captions for image %s" % image_path
+                f"could not generate im2txt captions for image {image_path}"
             )
+
             return False
 
     def _generate_clip_embeddings(self, commit=True):
@@ -183,12 +184,10 @@ class Photo(models.Model):
                 self.clip_embeddings_magnitude = magnitude
                 if commit:
                     self.save()
-                util.logger.info(
-                    "generated clip embeddings for image %s." % (image_path)
-                )
+                util.logger.info(f"generated clip embeddings for image {image_path}.")
             except Exception:
                 util.logger.exception(
-                    "could not generate clip embeddings for image %s" % image_path
+                    f"could not generate clip embeddings for image {image_path}"
                 )
 
     def _generate_captions(self, commit):
@@ -217,12 +216,10 @@ class Photo(models.Model):
                 )
             if commit:
                 self.save()
-            util.logger.info(
-                "generated places365 captions for image %s." % (image_path)
-            )
+            util.logger.info(f"generated places365 captions for image {image_path}.")
         except Exception:
             util.logger.exception(
-                "could not generate places365 captions for image %s" % image_path
+                f"could not generate places365 captions for image {image_path}"
             )
 
     def _generate_thumbnail(self, commit=True):
@@ -284,12 +281,11 @@ class Photo(models.Model):
                 hash=self.image_hash,
                 fileType=".mp4",
             )
-        filetype = ".webp"
-        if self.video:
-            filetype = ".mp4"
+        filetype = ".mp4" if self.video else ".webp"
         self.thumbnail_big.name = os.path.join(
-            "thumbnails_big", self.image_hash + ".webp"
+            "thumbnails_big", f"{self.image_hash}.webp"
         ).strip()
+
         self.square_thumbnail.name = os.path.join(
             "square_thumbnails", self.image_hash + filetype
         ).strip()
@@ -310,24 +306,17 @@ class Photo(models.Model):
             possible_old_album_date = api.models.album_date.get_album_date(
                 date=self.exif_timestamp.date(), owner=self.owner
             )
-            if (
-                possible_old_album_date is not None
-                and possible_old_album_date.photos.filter(
-                    image_hash=self.image_hash
-                ).exists
-            ):
-                old_album_date = possible_old_album_date
         else:
             possible_old_album_date = api.models.album_date.get_album_date(
                 date=None, owner=self.owner
             )
-            if (
-                possible_old_album_date is not None
-                and possible_old_album_date.photos.filter(
-                    image_hash=self.image_hash
-                ).exists
-            ):
-                old_album_date = possible_old_album_date
+        if (
+            possible_old_album_date is not None
+            and possible_old_album_date.photos.filter(
+                image_hash=self.image_hash
+            ).exists
+        ):
+            old_album_date = possible_old_album_date
         return old_album_date
 
     def _calculate_aspect_ratio(self, commit=True):
@@ -420,7 +409,7 @@ class Photo(models.Model):
 
         if "search_text" in res.keys():
             if self.search_location:
-                self.search_location = self.search_location + " " + res["search_text"]
+                self.search_location = f"{self.search_location} " + res["search_text"]
             else:
                 self.search_location = res["search_text"]
         # Delete photo from album places if location has changed
@@ -458,7 +447,7 @@ class Photo(models.Model):
         if album_date.location and len(album_date.location) > 0:
             prev_value = album_date.location
             new_value = prev_value
-            if city_name not in prev_value["places"]:
+            if city_name not in new_value["places"]:
                 new_value["places"].append(city_name)
                 new_value["places"] = list(set(new_value["places"]))
                 album_date.location = new_value
@@ -514,6 +503,7 @@ class Photo(models.Model):
                 face_encodings = face_recognition.face_encodings(
                     image, known_face_locations=face_locations
                 )
+                margin = 2
                 for idx_face, face in enumerate(zip(face_encodings, face_locations)):
                     face_encoding = face[0]
                     face_location = face[1]
@@ -521,9 +511,8 @@ class Photo(models.Model):
                     face_image = image[top:bottom, left:right]
                     face_image = PIL.Image.fromarray(face_image)
 
-                    image_path = self.image_hash + "_" + str(idx_face) + ".jpg"
+                    image_path = f"{self.image_hash}_{str(idx_face)}.jpg"
 
-                    margin = 2
                     existing_faces = api.models.face.Face.objects.filter(
                         photo=self,
                         location_top__lte=face_location[0] + margin,
@@ -555,26 +544,20 @@ class Photo(models.Model):
                     face.image.save(face.image_path, ContentFile(face_io.getvalue()))
                     face_io.close()
                     face.save()
-                logger.info(
-                    "image {}: {} face(s) saved".format(
-                        self.image_hash, len(face_locations)
-                    )
-                )
+                logger.info(f"image {self.image_hash}: {len(face_locations)} face(s) saved")
             cache.clear()
         except IntegrityError:
             # When using multiple processes, then we can save at the same time, which leads to this error
             if self.image_paths != []:
                 # print out the location of the image only if we have a path
-                logger.info("image {}: rescan face failed".format(self.image_paths[0]))
+                logger.info(f"image {self.image_paths[0]}: rescan face failed")
             if not second_try:
                 self._extract_faces(True)
+            elif self.image_paths == []:
+                logger.error(f"image {self}: rescan face failed")
+
             else:
-                if self.image_paths != []:
-                    logger.error(
-                        "image {}: rescan face failed".format(self.image_paths[0])
-                    )
-                else:
-                    logger.error("image {}: rescan face failed".format(self))
+                logger.error(f"image {self.image_paths[0]}: rescan face failed")
 
     def _add_to_album_thing(self):
         if (
@@ -603,10 +586,12 @@ class Photo(models.Model):
         cache.clear()
 
     def _check_image_paths(self):
-        exisiting_image_paths = []
-        for image_path in self.image_paths:
-            if os.path.exists(image_path):
-                exisiting_image_paths.append(image_path)
+        exisiting_image_paths = [
+            image_path
+            for image_path in self.image_paths
+            if os.path.exists(image_path)
+        ]
+
         self.image_paths = exisiting_image_paths
         self.save()
 
@@ -630,15 +615,15 @@ class Photo(models.Model):
             self.dominant_color = dominant_color
             self.save()
         except Exception:
-            print("Cannot calculate dominant color {} object".format(self))
+            print(f"Cannot calculate dominant color {self} object")
 
     def __str__(self):
-        return "%s" % self.image_hash
+        return f"{self.image_hash}"
 
     def manual_delete(self):
         for path in self.image_paths:
             if os.path.isfile(path):
-                logger.info("Removing photo {}".format(path))
+                logger.info(f"Removing photo {path}")
                 os.remove(path)
 
         cache.clear()

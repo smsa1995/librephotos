@@ -10,10 +10,7 @@ from api.util import logger
 class DateTimeField(serpy.Field):
     def to_value(self, value):
         try:
-            if value:
-                return value.isoformat()
-            else:
-                return None
+            return value.isoformat() if value else None
         except Exception:
             # import pdb; pdb.set_trace()
             logger.warning("DateTimefield error")
@@ -61,10 +58,7 @@ class PigPhotoSerilizer(serpy.Serializer):
             return ""
 
     def get_type(self, obj):
-        if obj.video:
-            return "video"
-        else:
-            return "image"
+        return "video" if obj.video else "image"
 
 
 class GroupedPhotosSerializer(serpy.Serializer):
@@ -79,13 +73,10 @@ class GroupedPersonPhotosSerializer(serpy.Serializer):
     grouped_photos = serpy.MethodField("get_photos")
 
     def get_photos(self, obj):
-        user = None
         request = self.context.get("request")
-        if request and hasattr(request, "user"):
-            user = request.user
+        user = request.user if request and hasattr(request, "user") else None
         grouped_photos = get_photos_ordered_by_date(obj.get_photos(user))
-        res = GroupedPhotosSerializer(grouped_photos, many=True).data
-        return res
+        return GroupedPhotosSerializer(grouped_photos, many=True).data
 
 
 class GroupedThingPhotosSerializer(serpy.Serializer):
@@ -95,8 +86,7 @@ class GroupedThingPhotosSerializer(serpy.Serializer):
 
     def get_photos(self, obj):
         grouped_photos = get_photos_ordered_by_date(obj.photos.all())
-        res = GroupedPhotosSerializer(grouped_photos, many=True).data
-        return res
+        return GroupedPhotosSerializer(grouped_photos, many=True).data
 
 
 class GroupedPlacePhotosSerializer(serpy.Serializer):
@@ -106,8 +96,7 @@ class GroupedPlacePhotosSerializer(serpy.Serializer):
 
     def get_photos(self, obj):
         grouped_photos = get_photos_ordered_by_date(obj.photos.all())
-        res = GroupedPhotosSerializer(grouped_photos, many=True).data
-        return res
+        return GroupedPhotosSerializer(grouped_photos, many=True).data
 
 
 class PigIncompleteAlbumDateSerializer(serpy.Serializer):
@@ -125,16 +114,10 @@ class PigIncompleteAlbumDateSerializer(serpy.Serializer):
         return True
 
     def get_number_of_items(self, obj):
-        if obj and obj.photo_count:
-            return obj.photo_count
-        else:
-            return 0
+        return obj.photo_count if obj and obj.photo_count else 0
 
     def get_location(self, obj):
-        if obj and obj.location:
-            return obj.location["places"][0]
-        else:
-            return ""
+        return obj.location["places"][0] if obj and obj.location else ""
 
 
 class PigAlbumDateSerializer(serpy.Serializer):
@@ -157,16 +140,10 @@ class PigAlbumDateSerializer(serpy.Serializer):
         return False
 
     def get_number_of_items(self, obj):
-        if obj and obj.photo_count:
-            return obj.photo_count
-        else:
-            return 0
+        return obj.photo_count if obj and obj.photo_count else 0
 
     def get_location(self, obj):
-        if obj and obj.location:
-            return obj.location["places"][0]
-        else:
-            return ""
+        return obj.location["places"][0] if obj and obj.location else ""
 
 
 class AlbumDateListWithPhotoHashSerializer(serpy.Serializer):

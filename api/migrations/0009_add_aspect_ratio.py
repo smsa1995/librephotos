@@ -8,8 +8,8 @@ class Migration(migrations.Migration):
         ("api", "0008_remove_image_path"),
     ]
 
-    def forwards_func(apps, schema):
-        Photo = apps.get_model("api", "Photo")
+    def forwards_func(self, schema):
+        Photo = self.get_model("api", "Photo")
         with exiftool.ExifTool() as et:
             for obj in Photo.objects.all():
                 if obj.thumbnail_big:
@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                         obj.aspect_ratio = round((width / height), 2)
                         obj.save()
                     except Exception:
-                        print("Cannot convert {} object".format(obj))
+                        print(f"Cannot convert {obj} object")
 
     operations = [
         migrations.AddField(

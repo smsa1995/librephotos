@@ -11,11 +11,7 @@ from ownphotos.settings import IMAGE_SIMILARITY_SERVER
 
 
 def search_similar_embedding(user, emb, result_count=100, threshold=27):
-    if type(user) == int:
-        user_id = user
-    else:
-        user_id = user.id
-
+    user_id = user if type(user) == int else user.id
     image_embedding = np.array(emb, dtype=np.float32)
 
     post_data = {
@@ -24,20 +20,15 @@ def search_similar_embedding(user, emb, result_count=100, threshold=27):
         "n": result_count,
         "threshold": threshold,
     }
-    res = requests.post(IMAGE_SIMILARITY_SERVER + "/search/", json=post_data)
+    res = requests.post(f"{IMAGE_SIMILARITY_SERVER}/search/", json=post_data)
     if res.status_code == 200:
         return res.json()["result"]
-    else:
-        logger.error("error retrieving similar embeddings for user {}".format(user_id))
-        return []
+    logger.error(f"error retrieving similar embeddings for user {user_id}")
+    return []
 
 
 def search_similar_image(user, photo, threshold=27):
-    if type(user) == int:
-        user_id = user
-    else:
-        user_id = user.id
-
+    user_id = user if type(user) == int else user.id
     if photo.clip_embeddings is None:
         return []
 
@@ -48,20 +39,18 @@ def search_similar_image(user, photo, threshold=27):
         "image_embedding": image_embedding.tolist(),
         "threshold": threshold,
     }
-    res = requests.post(IMAGE_SIMILARITY_SERVER + "/search/", json=post_data)
+    res = requests.post(f"{IMAGE_SIMILARITY_SERVER}/search/", json=post_data)
     if res.status_code == 200:
         return res.json()
-    else:
-        logger.error(
-            "error retrieving similar photos to {} belonging to user {}".format(
-                photo.image_hash, user.username
-            )
-        )
-        return []
+    logger.error(
+        f"error retrieving similar photos to {photo.image_hash} belonging to user {user.username}"
+    )
+
+    return []
 
 
 def build_image_similarity_index(user):
-    logger.info("builing similarity index for user {}".format(user.username))
+    logger.info(f"builing similarity index for user {user.username}")
     start = datetime.now()
     photos = (
         Photo.objects.filter(Q(hidden=False) & Q(owner=user))
@@ -85,6 +74,6 @@ def build_image_similarity_index(user):
             "image_hashes": image_hashes,
             "image_embeddings": image_embeddings,
         }
-        requests.post(IMAGE_SIMILARITY_SERVER + "/build/", json=post_data)
+        requests.post(f"{IMAGE_SIMILARITY_SERVER}/build/", json=post_data)
     elapsed = (datetime.now() - start).total_seconds()
     logger.info("builing similarity index took %.2f seconds" % elapsed)

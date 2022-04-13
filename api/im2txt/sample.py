@@ -76,5 +76,4 @@ def im2txt(image_path):
         sampled_caption.append(word)
         if word == "<end>":
             break
-    sentence = " ".join(sampled_caption)
-    return sentence
+    return " ".join(sampled_caption)

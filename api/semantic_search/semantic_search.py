@@ -15,13 +15,11 @@ class SemanticSearch:
     def load(self):
         self.load_model()
         self.model_is_loaded = True
-        pass
 
     def unload(self):
         self.model = None
         gc.collect()
         self.model_is_loaded = False
-        pass
 
     def load_model(self):
         self.model = SentenceTransformer(dir_clip_ViT_B_32_model)

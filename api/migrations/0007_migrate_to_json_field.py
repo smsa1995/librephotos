@@ -9,14 +9,14 @@ class Migration(migrations.Migration):
         ("api", "0006_migrate_to_boolean_field"),
     ]
 
-    def forwards_func(apps, schema):
-        Photo = apps.get_model("api", "Photo")
+    def forwards_func(self, schema):
+        Photo = self.get_model("api", "Photo")
         for obj in Photo.objects.all():
             try:
                 obj.image_paths.append(obj.image_path)
                 obj.save()
             except json.decoder.JSONDecodeError:
-                print("Cannot convert {} object".format(obj.image_path))
+                print(f"Cannot convert {obj.image_path} object")
 
     operations = [
         migrations.AddField(

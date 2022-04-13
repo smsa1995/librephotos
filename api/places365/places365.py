@@ -64,10 +64,9 @@ class Places365:
         file_path_category = os.path.join(
             dir_places365_model, "categories_places365.txt"
         )
-        self.classes = list()
+        self.classes = []
         with open(file_path_category) as class_file:
-            for line in class_file:
-                self.classes.append(line.strip().split(" ")[0][3:])
+            self.classes.extend(line.strip().split(" ")[0][3:] for line in class_file)
         self.classes = tuple(self.classes)
 
         # indoor and outdoor relevant
@@ -95,15 +94,13 @@ class Places365:
         self.labels_are_load = True
 
     def returnTF(self):
-        # load the image transformer
-        tf = trn.Compose(
+        return trn.Compose(
             [
                 trn.Resize((224, 224)),
                 trn.ToTensor(),
                 trn.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
-        return tf
 
     def remove_nonspace_separators(self, text):
         return " ".join(" ".join(" ".join(text.split("_")).split("/")).split("-"))
@@ -143,23 +140,16 @@ class Places365:
             probs = probs.numpy()
             idx = idx.numpy()
 
-            res = {}
-
             # output the IO prediction
             # labels_IO[idx[:10]] returns a list of 0's and 1's: 0 -> inside, 1 -> outside
             # Determine the mean to reach a consensus
             io_image = np.mean(self.labels_IO[idx[:10]])
-            if io_image < 0.5:
-                res["environment"] = "indoor"
-            else:
-                res["environment"] = "outdoor"
+            res = {
+                "environment": "indoor" if io_image < 0.5 else "outdoor",
+                "categories": [],
+            }
 
-            # output the prediction of scene category
-            # idx[i] returns a index number for which class it corresponds to
-            # classes[idx[i]], thus returns the class name
-            # idx is sorted together with probs, with highest probabilities first
-            res["categories"] = []
-            for i in range(0, 5):
+            for i in range(5):
                 if probs[i] > confidence:
                     res["categories"].append(
                         self.remove_nonspace_separators(self.classes[idx[i]])
